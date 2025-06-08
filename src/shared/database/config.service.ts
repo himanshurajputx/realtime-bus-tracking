@@ -1,7 +1,9 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
-import * as dotenv from 'dotenv';
+import { config } from 'dotenv';
+import { join } from 'path';
 
+config();
 export class ConfigService {
   constructor(private env: { [k: string]: string | undefined }) {}
 
@@ -11,7 +13,7 @@ export class ConfigService {
       throw new Error(`config error - missing env.${key}`);
     }
 
-    return value;
+    return <string>value;
   }
 
   public ensureValues(keys: string[]) {
@@ -19,46 +21,20 @@ export class ConfigService {
     return this;
   }
 
-  public getPort() {
-    return this.getValue('PORT', true);
-  }
-
-  public isProduction() {
-    const mode = this.getValue('MODE', false);
-    return mode != 'DEV';
-  }
-
   public getTypeOrmConfig(): TypeOrmModuleOptions {
     return {
       type: 'postgres',
-
-      host: this.getValue('POSTGRES_HOST'),
-      port: parseInt(this.getValue('POSTGRES_PORT')),
-      username: this.getValue('POSTGRES_USER'),
-      password: this.getValue('POSTGRES_PASSWORD'),
-      database: this.getValue('POSTGRES_DATABASE'),
-
-      entities: ['**/*.entity{.ts,.js}'],
-
-      migrationsTableName: 'migration',
-
-      migrations: ['src/migration/*.ts'],
-
-      cli: {
-        migrationsDir: 'src/migration',
+      url: this.getValue('DATABASE_URL'),
+      ssl: {
+        rejectUnauthorized: false,
       },
-
-      ssl: this.isProduction(),
+      entities: [join(__dirname, '../../', '**', '*.entity.{ts,js}')], // ✅ Auto-detect entities
+      synchronize: true, // ⚠️ DEV ONLY: Auto-creates tables
     };
   }
 }
 
 const configService = new ConfigService(process.env).ensureValues([
-  'POSTGRES_HOST',
-  'POSTGRES_PORT',
-  'POSTGRES_USER',
-  'POSTGRES_PASSWORD',
-  'POSTGRES_DATABASE',
+  'DATABASE_URL',
 ]);
-
 export { configService };
